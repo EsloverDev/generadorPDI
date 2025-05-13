@@ -1,36 +1,75 @@
 import pandas as pd
+import os
 
-def generarReporteRespuestas(conexion, anomat, numper, codeva):
+def obtenerInstitucionesYCursos(conexion):
+    cursor = conexion.cursor()
+    query = """
+        SELECT DISTINCT i.codinse, c.codcur
+        FROM alctreva a
+        JOIN almatric m ON a.codalu = m.codalu AND a.codcur = m.codcur
+        JOIN prinstit i ON m.codfac = i.codinse
+        JOIN prcursos c ON m.codcur = c.codcur
+        WHERE a.noteva IS NOT NULL
+        ORDER BY i.codinse, c.codcur
+    """
+    cursor.execute(query)
+    return cursor.fetchall()
+
+def generarReporteRespuestas(conexion, anomat, numper, codeva, codcur, codinse):
+    cursor = conexion.cursor()
     query = """
         SELECT 
-            e.codalu,
-            db.apelli || ' ' || db.nombre AS estudiante,
-            inst.nominse AS institucion,
+            a.codalu,
+            b.apelli || ' ' || b.nombre AS estudiante,
+            i.nominse AS institucion,
             m.grupo,
-            e.codcur,
-            e.codeva,
-            e.nroopo,
-            e.codpre,
-            e.opcion,
-            p.opcsal AS opcion_correcta,
-            CASE 
-                WHEN e.opcion = p.opcsal THEN 1
-                ELSE 0
-            END AS acierto
-        FROM aldeteva e
-        JOIN evpregun p ON e.codpre = p.codpre
-        JOIN aldatbas db ON e.codalu = db.codalu
-        JOIN almatric m ON e.codalu = m.codalu AND e.codcur = m.codcur
-        JOIN prinstit inst ON m.codfac = inst.codinse
+            c.nomcur AS materia,
+            a.nroopo,
+            a.codpre,
+            a.opcion,
+            r.vlropc
+        FROM aldeteva a
+        JOIN aldatbas b ON a.codalu = b.codalu
+        JOIN almatric m ON a.codalu = m.codalu AND a.codcur = m.codcur AND m.anomat = a.anomat AND m.numper = a.numper
+        JOIN prinstit i ON m.codfac = i.codinse
+        JOIN prcursos c ON a.codcur = c.codcur
+        JOIN evressel r ON a.codpre = r.codpre AND a.opcion = r.opcion
         WHERE 
-            e.anomat = %s AND
-            e.numper = %s AND
-            e.codeva = %s AND
-            e.nroopo = 1
-        ORDER BY e.codalu, e.codpre
+            a.anomat = %s AND
+            a.numper = %s AND
+            a.codeva = %s AND
+            a.codcur = %s AND
+            i.codinse = %s AND
+            a.nroopo = 2
+        ORDER BY a.codalu, a.codpre
     """
-    df = pd.read_sql_query(query, conexion, params=(anomat, numper, codeva))
+    cursor.execute(query, (anomat, numper, codeva, codcur, codinse))
+    datos = cursor.fetchall()
+    if not datos:
+        print(f"No hay respuestas para el curso {codcur} en la institución {codinse}")
+        return
+    
+    estudiantes = {}
+    for row in datos:
+        codalu, estudiante, institucion, grupo, materia, nroopo, codpre, opcion, vlropc = row
+        clave = (codalu, estudiante, institucion, grupo, materia, nroopo)
+        if clave not in estudiantes:
+            estudiantes[clave]={}
+        resultado = f"{opcion} - {'Correcta' if vlropc == 1 else 'Incorrecta'}"
+        estudiantes[clave][codpre] = resultado
 
-    output_path = "reports/outputs/respuestas_evaluacion.xlsx"
-    df.to_excel(output_path, index=False)
-    print(f"\nReporte exportado a: {output_path}")
+    columnas_codpre = sorted({row[6] for row in datos})
+    filas = []
+    for clave, respuestas in estudiantes.items():
+        fila = list(clave)
+        for codpre in columnas_codpre:
+            fila.append(respuestas.get(codpre, ""))
+        filas.append(fila)
+    
+    columnas = ["Código del alumno", "Estudiante", "Institución", "Grupo", "Materia", "Oportunidad"] + columnas_codpre
+    df = pd.DataFrame(filas, columns= columnas)
+    carpeta = os.path.join("reports", "outputs")
+    os.makedirs(carpeta, exist_ok=True)
+    nombre_archivo = os.path.join(carpeta, f"respuestas_{codinse}_{codcur}.xlsx")
+    df.to_excel(nombre_archivo, index=False)
+    print(f"\nReporte generado: {nombre_archivo}")

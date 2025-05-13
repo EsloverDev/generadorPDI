@@ -1,5 +1,5 @@
 import random
-from recolector import actividadYaAsignada
+from logic.recolector import actividadYaAsignada
 
 def insertarActividad(cursor, codalu, codcur, anomat, numper, codeva, nroopo, codtem, nrosec):
     cursor.execute("""
