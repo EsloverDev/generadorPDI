@@ -3,12 +3,13 @@ from db.conexion import obtenerConexion
 from logic.calculador import notasPorTema
 from logic.generador import generarPdi
 from reports.respuestas import generarReporteRespuestas, obtenerInstitucionesYCursos
+from reports.comparativo import generarReporteComparativo
 
 load_dotenv()
 
 def menu():
     print("\nSelecciona una opción:")
-    print("\n1. Generar informes de respuestas.\n2. Calcular notas por tema y generar PDI.\n3. Salir")
+    print("\n1. Generar informes de respuestas.\n2. Calcular notas por tema y generar PDI.\n3. Generar reporte comparativo.\n4. Salir")
     return input("Opción: ")
 
 if __name__ == "__main__":
@@ -36,6 +37,8 @@ if __name__ == "__main__":
 
             print("\nGenerando actividades del PDI...")
             generarPdi(conexion, resultados)
+        elif opcion == '3':
+            generarReporteComparativo(conexion, 2025, 'P1')
         else:
             print("Saliendo...")
         conexion.close()
