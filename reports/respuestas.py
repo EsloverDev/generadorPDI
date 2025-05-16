@@ -68,8 +68,8 @@ def generarReporteRespuestas(conexion, anomat, numper, codeva, codcur, codinse):
     
     columnas = ["Código del alumno", "Estudiante", "Institución", "Grupo", "Materia", "Oportunidad"] + columnas_codpre
     df = pd.DataFrame(filas, columns= columnas)
-    carpeta = os.path.join("reports", "outputs")
+    carpeta = "reports/outputs/comparar_respuestas"
     os.makedirs(carpeta, exist_ok=True)
-    nombre_archivo = os.path.join(carpeta, f"respuestas_{codinse}_{codcur}.xlsx")
+    nombre_archivo = os.path.join(carpeta, f"respuestas_{institucion.replace(' ', '_').replace('/', '-')}_{materia.replace('SABER 11 ', '').replace(' ', '_')}.xlsx")
     df.to_excel(nombre_archivo, index=False)
     print(f"\nReporte generado: {nombre_archivo}")
